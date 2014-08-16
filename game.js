@@ -111,6 +111,7 @@ function Moveable(width, height, color) {
   this.support = null;
   this.accelx = 0;
   this.accely = 0;
+  this.dirx = 0;
 };
 Moveable.prototype = new Body(0,0,"rgb(0,0,0)");
 Moveable.prototype.velocity = function(x, y) {
@@ -128,10 +129,13 @@ Moveable.prototype.update = function() {
   this._left += this.vx;
   this._top += this.vy;
 
-  this.vx += this.accelx;
   this.vy += this.accely;
+  var accelx = this.dirx * ((this.surface ? this.surface.friction * this.friction * 30 : 0)
+        + 0.04);
+  this.vx += accelx;
 
-  if (this.support) {
+
+  if (this.support && this.dirx === 0) {
     this.vx *= (1 - this.friction * this.support.friction);
   }
 
@@ -156,8 +160,10 @@ player.name = "player";
 player.vy = 0;
 player.accely = 0.05;
 player.fire = function(x, y, r) {
+  // this is wrong -- vx 
   if (x == this.centerx()) x += 1;
   var angle = Math.atan((y - this.centery()) / (x - this.centerx()));
+  // angle += Math.random() / 4;
   direction =  x > this.centerx() ? 1 : -1;
   var xvel = r * Math.cos(angle);
   xvel *= direction;
@@ -183,30 +189,33 @@ player.onCollisionWith("Body", function(dir, body) {
   }
 });
 var floor = new Body(200, 20, "rgb(75, 75, 75)").pos(10, 400).register();
-floor.friction = 0.2;
+floor.friction = 0.5;
 
 var floor2 = new Body(200, 20, "rgb(75, 75, 75)").pos(300, 300).register();
 floor2.friction = 0.1;
 var doKeyDown = function(k) {
+  var accel = player.support ? 0.1 : 0.06;
   if (k.keyCode == 32)
     player.jump(5);
   else if (k.keyCode == 65) // A
-    player.accelx = -0.1;
+//    player.accelx = -accel;
+    player.dirx = -1;
   else if (k.keyCode == 68) // D
-    player.accelx = 0.1;
+//    player.accelx = accel;
+    player.dirx = 1;
 };
 addEventListener("keydown",doKeyDown,true);
-addEventListener("click", function(e) {
-  console.log(e);
-  player.fire(e.x, e.y, 5);
-});
 addEventListener("keyup", function(k) {
   console.log(k.keyCode);
   if (k.keyCode == 65) // A
-    player.accelx = 0;
+    player.dirx = 0;
   else if (k.keyCode == 68) // D
-    player.accelx = 0;
+    player.dirx = 0;
 }, true);
+addEventListener("click", function(e) {
+  console.log(e);
+  player.fire(e.x, e.y, 20);
+});
 var main = function() {
   clear();
   for (b in BODIES) {
