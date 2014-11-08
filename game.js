@@ -1,12 +1,33 @@
+/////////////////////////////////// to do list ///////////////////////////////////
+// TODO: sometimes the player bounces off the wall at weird angle
+// TODO: jumping off the floor and the wall should be the same action
+
+// TODO win condition / multiple levels
+// TODO dying should restart the level or something
+/* TODO rework collision logic.
+   - I may only need to check for collisions between player and other things
+   - Make it easier to separate collision callbacks from the state
+   - If maps get big enough, use a heap instead of a list to hold bodies
+*/
+
 // TODO: real friction equation. i.e take weight into account
-// TODO: collision direction should be based on velocity? nno, that won't work either
-//  angle from nearest edge would make more sense
+/*********** utility functions ***********/
+function sign(x){
+    if( +x === x ) { // check if a number was given
+        return (x === 0) ? x : (x > 0) ? 1 : -1;
+    }
+    return NaN;
+}
+
+/************** constants etc **************/
 var BODIES = [];
 var WIDTH = 640;
 var HEIGHT = 480;
 var DELAY = 10;
 var canvas = document.getElementById("game");
 var ctx = canvas.getContext("2d");
+var camera = {x : WIDTH/2,
+              y : HEIGHT/2};
 
 function Body(width, height, color)  {
   this.name = "Body";
@@ -16,6 +37,7 @@ function Body(width, height, color)  {
   this.vx = 0;
   this.vy = 0;
   this._left = 0;
+
   this._top = 0;
   this.friction = 0;
   this.collisionCallbacks = {};
@@ -25,7 +47,7 @@ Body.prototype.register = function() {
   return this;
 };
 Body.prototype.pos = function() {
-  if (arguments.length == 0) {
+  if (arguments.length === 0) {
     return [this._left, this._top];
   } else if (arguments.length == 1) {
     this._left = arguments[0][0];
@@ -37,6 +59,11 @@ Body.prototype.pos = function() {
     return this;    
   }
 };
+Body.prototype.destroy = function() {
+  var index = BODIES.indexOf(this);
+  BODIES.splice(index, 1);
+};
+
 Body.prototype.top = function() { return this._top; };
 Body.prototype.left = function() { return this._left; };
 Body.prototype.bottom = function() { return this._top + this.height; };
@@ -45,7 +72,8 @@ Body.prototype.centerx = function() { return this._left + this.width / 2; };
 Body.prototype.centery = function() { return this._top + this.height / 2; };
 Body.prototype.draw = function() {
   ctx.fillStyle = this.color;
-  ctx.fillRect(this.left(), this.top(), this.width, this.height);
+  ctx.fillRect(this.left() - camera.x + WIDTH/2, this.top() - camera.y + HEIGHT/2,
+               this.width, this.height);
 };
 Body.prototype.angleTo = function(other) {
   if (other.centerx() == this.centerx())
@@ -56,34 +84,30 @@ Body.prototype.angleTo = function(other) {
                    (other.centerx() - this.centerx()));
 };
 Body.prototype.collision = function(other) {
-  if (this.left() > other.right() ||
-      this.right() < other.left() ||
-      this.top() > other.bottom() ||
-      this.bottom() < other.top()) {
-    return false;
+  // Alogorithm adapted from http://gamedev.stackexchange.com/questions/29786/a-simple-2d-rectangle-collision-algorithm-that-also-determines-which-sides-that
+  // Compute Minkowski sum of both rectangles
+  var w = (this.width + other.width) / 2;
+  var h = (this.height + other.height) / 2;
+  var dx = this.centerx() - other.centerx();
+  var dy = this.centery() - other.centery();
+  if (Math.abs(dx) <= w && Math.abs(dy) <= h) {
+    var wy = w * dy;
+    var hx = h * dx;
+    return (wy > hx) ?
+      ((wy > -hx) ? "top" : "right") :
+      ((wy > -hx) ? "left" : "bottom");
   }
-  var angle = this.angleTo(other);
-  var eighths = angle / 0.25 * Math.PI;
-
-  // Get angle of collision to get direction
-  if (eighths > 7 || eighths <= 1)
-    return "right";
-  else if (eighths <= 3)
-    return "top";
-  else if (eighths <= 5)
-    return "left";
-  return "bottom";
+  return false;
 };
 Body.prototype.onCollisionWith = function(type, callback) {
   /*
    * Callback to be called on a collision, passed (direction, other)
    */
-  // TODO?: Are multiple callbacks for a type necessary?
   this.collisionCallbacks[type] = callback;
 };
 Body.prototype.update = function() {
   // default - do nothing
-},
+};
 Body.prototype.doCollisions = function() {
   for (var type in this.collisionCallbacks) {
     var callback = this.collisionCallbacks[type];
@@ -98,6 +122,15 @@ Body.prototype.doCollisions = function() {
   }
 };
 
+function Coin(color) {
+  this.name = "Coin";
+  this.width = 25;
+  this.height = 25;
+  this.color = color;
+
+  this.collisionCallbacks = {};
+}
+Coin.prototype = new Body(0,0, "black");
 
 function Moveable(width, height, color) {
 //  this.__proto__ = 
@@ -108,21 +141,25 @@ function Moveable(width, height, color) {
 
   this.terminalXVelocity = 3;
   this.terminalYVelocity = 5;
+
   this.support = null;
+  this.bouncy = false;
+
   this.accelx = 0;
   this.accely = 0;
   this.dirx = 0;
-};
+}
 Moveable.prototype = new Body(0,0,"rgb(0,0,0)");
+
 Moveable.prototype.velocity = function(x, y) {
-  if (x == undefined) return [this.vx, this.vy];
+  if (x === undefined) return [this.vx, this.vy];
 
   this.vx = x;
   this.vy = y;
   return this;
 };
 Moveable.prototype.jump = function(amount) {
-  if (this.support)
+ if (this.support)
     this.vy = -amount;
 };
 Moveable.prototype.update = function() {
@@ -139,12 +176,45 @@ Moveable.prototype.update = function() {
     this.vx *= (1 - this.friction * this.support.friction);
   }
 
-  this.vx = Math.min(this.vx, this.terminalXVelocity);
-  this.vy = Math.min(this.vy, this.terminalYVelocity);
+  this.vx = sign(this.vx) * Math.min(Math.abs(this.vx), this.terminalXVelocity);
+  this.vy = sign(this.vy) * Math.min(Math.abs(this.vy), this.terminalYVelocity);
 
   this.support = null;
   this.doCollisions();
 };
+
+var Player = function(width, height, color) {
+  Moveable.apply(this, arguments);
+  this.name = "Player";
+};
+Player.prototype = new Moveable(0,0,"rgb(0,0,0)");
+Player.prototype.switchColor = function() {
+  if (this.color === "white")
+    this.color = "black";
+  else {
+    this.color = "white";
+  }
+};
+
+
+function Enemy(width, height, color) {
+  this.name="Enemy";
+  this.width = width;
+  this.height = height;
+  this.color = color;
+
+  this.terminalXVelocity = 3;
+  this.terminalYVelocity = 5;
+
+  this.support = null;
+  this.bouncy = false;
+
+  this.accelx = 0;
+  this.accely = 0;
+  this.dirx = 0;
+}
+Enemy.prototype = new Moveable(0,0,"rgb(0,0,0)");
+
 
 var clear = function() {
   ctx.fillStyle = "rgb(0, 191, 250)";
@@ -154,74 +224,97 @@ var clear = function() {
 var key = 0;
 var done = false;
 
-var player = new Moveable(20, 60, "rgb(0, 250, 0)").pos(20, 300).register();
-player.friction = 0.1;
-player.name = "player";
-player.vy = 0;
-player.accely = 0.05;
-player.fire = function(x, y, r) {
-  // this is wrong -- vx 
-  if (x == this.centerx()) x += 1;
-  var angle = Math.atan((y - this.centery()) / (x - this.centerx()));
-  // angle += Math.random() / 4;
-  direction =  x > this.centerx() ? 1 : -1;
-  var xvel = r * Math.cos(angle);
-  xvel *= direction;
-  var yvel = r * Math.sin(angle);
-  yvel *= direction;
-  var bullet = new Moveable(15, 15, "rgb(250, 200, 200)")
-    .pos(this.centerx(), this.centery())
-    .velocity(xvel, yvel)
-    .register();
-  bullet.accely = 0.05;
-  bullet.friction = 0.5;
-  // bullet.onCollisionWith("Body", function(dir, body) {
-  //   this.support = body;
-  // });
-};
-
-player.onCollisionWith("Body", function(dir, body) {
-  //    if (dir == "bottom") {
-  if (Math.abs(this.angleTo(body)) < Math.PI / 2) {
-    this._top = body._top - this.height;
-    this.vy = 0;
-    this.support = body;
-  }
-});
-var floor = new Body(200, 20, "rgb(75, 75, 75)").pos(10, 400).register();
-floor.friction = 0.5;
-
-var floor2 = new Body(200, 20, "rgb(75, 75, 75)").pos(300, 300).register();
-floor2.friction = 0.1;
+var left_pressed = false;
+var right_pressed = false;
 var doKeyDown = function(k) {
-  var accel = player.support ? 0.1 : 0.06;
   if (k.keyCode == 32)
-    player.jump(5);
-  else if (k.keyCode == 65) // A
-//    player.accelx = -accel;
+    player.jump(4);
+  else if (k.keyCode == 65) { // A
     player.dirx = -1;
-  else if (k.keyCode == 68) // D
-//    player.accelx = accel;
+    left_pressed = true;
+  } else if (k.keyCode == 68) { // D
     player.dirx = 1;
-};
-addEventListener("keydown",doKeyDown,true);
-addEventListener("keyup", function(k) {
-  console.log(k.keyCode);
-  if (k.keyCode == 65) // A
-    player.dirx = 0;
-  else if (k.keyCode == 68) // D
-    player.dirx = 0;
-}, true);
-addEventListener("click", function(e) {
-  console.log(e);
-  player.fire(e.x, e.y, 20);
-});
-var main = function() {
-  clear();
-  for (b in BODIES) {
-    BODIES[b].update();
-    BODIES[b].draw();
+    right_pressed = true;
+  } else if (k.keyCode == 81) { // Q
+    player.bouncy = true;
   }
 };
-console.log("loaded!");
-setInterval(main, DELAY);
+var doKeyUp = function(k) {
+  if (k.keyCode == 65) { // A
+    player.dirx = 0;
+    left_pressed = false;
+    if (right_pressed) player.dirx = 1;
+  } else if (k.keyCode == 68) { // D
+    player.dirx = 0;
+    right_pressed = false;
+    if (left_pressed) player.dirx = -1;
+  } else if (k.keyCode == 81) { // Q
+    player.bouncy = false;
+  } else if (k.keyCode == 69) { // E
+    player.switchColor();
+  }
+};
+
+/*
+  Maybe I should switch to a real map editor eventually. Using a map
+  of characters for now.
+
+  W, B, G = white, black and grey blocks
+  i, b, g = white, black and grey coins
+  @       = the player
+*/ 
+var map = [
+  "",
+  "",
+  "                       W          ",
+  "                       W          ",
+  "                       W   BBBGGGWWGGGBBGGGWWGGGBBB b B            ",
+  "                       W   B                      B b B             ",
+  "                       W   B                      B b B             ",
+  "                       W   B                      B   B             ",
+  "                       W   B                      B   B             ",
+  "                       W   B                      B   B             ",
+  "                       W   B                      B i B             ",
+  "                       W   B                      B i B             ",
+  "                       W   B                      B i B             ",
+  " @                         B                      B   B             ",
+  "                           B                      B   B             ",
+  "   iii        WWWW   BBBBBBB                      B b B             ",
+  "                                                  B b B               ",
+  "WWWWWWWWW",
+  "                                                     ",
+  "                                                   WWWWWWWWWWWWW    ",
+  "",
+  "",
+  "",
+  "",
+  "WBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWB" // lava!
+];
+
+function drawMap(map, player) {
+  var blockWidth = 50;
+  var blockLength = 75;
+  for (var i in map) {
+    level = map[i];
+    for (var j in level) {
+      character = level[j];
+      x = j * blockWidth;
+      y = i * blockLength;
+      if (character === " ") continue; // empty space
+      else if (["W", "B", "G"].indexOf(character) > -1) { // blocks
+        body = new Body(blockWidth, blockLength,
+                        {"W":"white", "B":"black", "G":"grey"}[character])
+          .pos(x, y).register();
+        body.friction = 0.7;
+      } else if (character === "@") { // the player
+        player.pos(x, y);
+      } else if (["b", "i", "g"].indexOf(character) > -1) { // coins
+        new Coin({
+          "b": "black",
+          "i": "white",
+          "g": "grey"
+        }[character]).pos(x, y).register();
+      }
+    }
+  }
+}

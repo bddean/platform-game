@@ -2,12 +2,19 @@
 <html>
   <head>
     <title>Canvas game</title>
+    <!-- for reactive programming with emacs -->
     <script type="application/javascript" src="http://localhost:8000/skewer"></script>
+
+    <!-- trying to separate functions etc and mutable state -->
     <script type="application/javascript" src="game.js" defer=""></script>
+    <script type="application/javascript" src="init.js" defer=""></script>
+
     <style type="text/css">
       canvas { border: 1px solid black; }
     </style>
   </head>
+
+
   <body>
     <canvas width="640" height="480" id="game"></canvas>
   </body>
