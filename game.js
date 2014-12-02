@@ -186,6 +186,7 @@ Moveable.prototype.update = function() {
 var Player = function(width, height, color) {
   Moveable.apply(this, arguments);
   this.name = "Player";
+  this.originalPos = [0, 0];
 };
 Player.prototype = new Moveable(0,0,"rgb(0,0,0)");
 Player.prototype.switchColor = function() {
@@ -194,6 +195,16 @@ Player.prototype.switchColor = function() {
   else {
     this.color = "white";
   }
+};
+Player.prototype.destroy = function() {
+  this.pos(this.originalPos);
+  this._vx = 0;
+  this._vy = 0;
+};
+
+Player.prototype.setOriginalPos = function(x, y) {
+  this.originalPos = [x, y];
+  this.pos(this.originalPos); // no idea y this doesn't work
 };
 
 
@@ -307,7 +318,7 @@ function drawMap(map, player) {
           .pos(x, y).register();
         body.friction = 0.7;
       } else if (character === "@") { // the player
-        player.pos(x, y);
+        player.setOriginalPos(x, y);
       } else if (["b", "i", "g"].indexOf(character) > -1) { // coins
         new Coin({
           "b": "black",
@@ -318,3 +329,5 @@ function drawMap(map, player) {
     }
   }
 }
+
+

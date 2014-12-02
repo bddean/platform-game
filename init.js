@@ -18,7 +18,7 @@ player.onCollisionWith("Body", function(dir, body) {
       (player.color === "black" && body.color === "white"))
     player.destroy();
 
-  if (dir == "bottom") {
+  else if (dir == "bottom") {
     this._top = body._top - this.height;
     this.vy = 0;
     this.support = body;
@@ -46,7 +46,7 @@ player.onCollisionWith("Body", function(dir, body) {
 player.onCollisionWith("Coin", function(dir, coin) {
   if ((player.color === "white" && coin.color === "black") ||
       (player.color === "black" && coin.color === "white"))
-    console.log("OUCH");
+    player.destroy();
   else {
     coin.destroy();
     score += 1;
@@ -76,7 +76,6 @@ var main = function() {
   // draw score
   ctx.fillStyle = "black";
   ctx.font="20px Arial";
-  console.log(score);
   ctx.fillText(score + "", 0, 20);
 };
 
