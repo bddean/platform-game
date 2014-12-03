@@ -3,7 +3,6 @@
 // TODO: jumping off the floor and the wall should be the same action
 
 // TODO win condition / multiple levels
-// TODO dying should restart the level or something
 /* TODO rework collision logic.
    - I may only need to check for collisions between player and other things
    - Make it easier to separate collision callbacks from the state
