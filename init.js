@@ -6,11 +6,10 @@ addEventListener("keydown", doKeyDown,true);
 addEventListener("keyup", doKeyUp, true);
 
 var player = new Player(50, 50, "white").pos(20,300).register();
-player.friction = 0.1;
 player.vy = 0;
 player.accely = 0.05;
 
-drawMap(map, player);
+drawMap(CURRENT_LEVEL.map, player);
 
 
 player.onCollisionWith("Body", function(dir, body) {
@@ -51,6 +50,10 @@ player.onCollisionWith("Coin", function(dir, coin) {
     coin.destroy();
     score += 1;
   }
+  if (score == MAX_SCORE && CURRENT_LEVEL.next) {
+    CURRENT_LEVEL = CURRENT_LEVEL.next;
+    drawMap(CURRENT_LEVEL.map, player);
+  }
 });
 
 
@@ -76,7 +79,7 @@ var main = function() {
   // draw score
   ctx.fillStyle = "black";
   ctx.font="20px Arial";
-  ctx.fillText(score + "", 0, 20);
+  ctx.fillText(score + "/" + MAX_SCORE, 0, 20);
 };
 
 //TODO: use window.requestAnimationFrame

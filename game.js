@@ -27,6 +27,8 @@ var canvas = document.getElementById("game");
 var ctx = canvas.getContext("2d");
 var camera = {x : WIDTH/2,
               y : HEIGHT/2};
+var MAX_SCORE = 0;
+var CURRENT_LEVEL;
 
 function Body(width, height, color)  {
   this.name = "Body";
@@ -186,6 +188,8 @@ var Player = function(width, height, color) {
   Moveable.apply(this, arguments);
   this.name = "Player";
   this.originalPos = [0, 0];
+  this.friction = 0.1;
+  this.accely = 0.05;
 };
 Player.prototype = new Moveable(0,0,"rgb(0,0,0)");
 Player.prototype.switchColor = function() {
@@ -273,18 +277,32 @@ var doKeyUp = function(k) {
   i, b, g = white, black and grey coins
   @       = the player
 */ 
-var map = [
+
+var level1 = {};
+var level2 = {};
+var level3 = {};
+var level4 = {};
+CURRENT_LEVEL = level4;
+level1.map = [
+  "     iiiii",
+  "@",
+  "WWWWWBBBBBWWWWW"
+];
+level1.next = level2;
+level2.map = [
+  "  iii           bbb           iii     ",
+  "@",
+  "WWWWWWW       BBBBBBB       BBBBBBB"
+];
+level2.next = level3;
+level3.map = [
   "",
   "",
   "                       W          ",
   "                       W          ",
   "                       W   BBBGGGWWGGGBBGGGWWGGGBBB b B            ",
   "                       W   B                      B b B             ",
-  "                       W   B                      B b B             ",
   "                       W   B                      B   B             ",
-  "                       W   B                      B   B             ",
-  "                       W   B                      B   B             ",
-  "                       W   B                      B i B             ",
   "                       W   B                      B i B             ",
   "                       W   B                      B i B             ",
   " @                         B                      B   B             ",
@@ -300,8 +318,23 @@ var map = [
   "",
   "WBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWB" // lava!
 ];
+level3.next = level4;
+
+level4.map = [
+  "   @",
+  "   W   W",
+  "",
+  " WW     WW",
+  "  WWWWWWW",
+];
 
 function drawMap(map, player) {
+  BODIES = [];
+  player.register();
+  player.vx = 0;
+  player.vy = 0;
+  MAX_SCORE = 0;
+  score = 0;
   var blockWidth = 50;
   var blockLength = 75;
   for (var i in map) {
@@ -324,6 +357,7 @@ function drawMap(map, player) {
           "i": "white",
           "g": "grey"
         }[character]).pos(x, y).register();
+        MAX_SCORE ++;
       }
     }
   }
