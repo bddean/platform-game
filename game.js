@@ -1,17 +1,18 @@
-/////////////////////////////////// to do list ///////////////////////////////////
-// TODO: sometimes the player bounces off the wall at weird angle
-// TODO: jumping off the floor and the wall should be the same action
-
-// TODO win condition / multiple levels
-/* TODO rework collision logic.
-   - I may only need to check for collisions between player and other things
-   - Make it easier to separate collision callbacks from the state
-   - If maps get big enough, use a heap instead of a list to hold bodies
-*/
-
-// TODO: real friction equation. i.e take weight into account
+/*********** to do list  ***********/
+/* FIXME: player randomly dies in midair
+ * FIXME: game speed is not consistent
+ * TODO: jumping off the floor and the wall should be the same action
+ * TODO: clean up collision logic
+ *   - I may only need to check for collisions between player and other things
+ *   - separate intialization + logic better
+ *   - Make it easier to separate collision callbacks from the state
+ *   - If maps get big enough, use a heap instead of a list to hold bodies
+ * TODO: more features
+ *   - moving coins
+ *   - blocks that change color 
+ **/
 /*********** utility functions ***********/
-function sign(x){
+function sign(x){ // from http://stackoverflow.com/questions/21363064/chrome-chromium-doesnt-know-javascript-function-math-sign
     if( +x === x ) { // check if a number was given
         return (x === 0) ? x : (x > 0) ? 1 : -1;
     }
@@ -19,16 +20,18 @@ function sign(x){
 }
 
 /************** constants etc **************/
-var BODIES = [];
+var BODIES;
 var WIDTH = 640;
 var HEIGHT = 480;
 var DELAY = 10;
 var canvas = document.getElementById("game");
 var ctx = canvas.getContext("2d");
-var camera = {x : WIDTH/2,
-              y : HEIGHT/2};
-var MAX_SCORE = 0;
+
+var MAX_SCORE;
 var CURRENT_LEVEL;
+
+var X_BOUNDS;
+var Y_BOUNDS;
 
 function Body(width, height, color)  {
   this.name = "Body";
@@ -73,8 +76,10 @@ Body.prototype.centerx = function() { return this._left + this.width / 2; };
 Body.prototype.centery = function() { return this._top + this.height / 2; };
 Body.prototype.draw = function() {
   ctx.fillStyle = this.color;
-  ctx.fillRect(this.left() - camera.x + WIDTH/2, this.top() - camera.y + HEIGHT/2,
-               this.width, this.height);
+  ctx.fillRect((this.left() - camera.x) * camera.z + WIDTH/2,
+               (this.top()  - camera.y) * camera.z + HEIGHT/2,
+               this.width * camera.z,
+               this.height * camera.z);
 };
 Body.prototype.angleTo = function(other) {
   if (other.centerx() == this.centerx())
@@ -167,6 +172,13 @@ Moveable.prototype.update = function() {
   this._left += this.vx;
   this._top += this.vy;
 
+  // Clean up: get rid of objects that are out of bounds
+  if (this.centerx() < X_BOUNDS[0] || this.centerx() > X_BOUNDS[1] ||
+      this.centery() < Y_BOUNDS[0] || this.centery() > Y_BOUNDS[1]) {
+    console.log("OUT OF BOUNDS");
+    this.destroy();
+  }
+
   this.vy += this.accely;
   var accelx = this.dirx * ((this.surface ? this.surface.friction * this.friction * 30 : 0)
         + 0.04);
@@ -175,6 +187,7 @@ Moveable.prototype.update = function() {
 
   if (this.support && this.dirx === 0) {
     this.vx *= (1 - this.friction * this.support.friction);
+    this.startedFalling = undefined;
   }
 
   this.vx = sign(this.vx) * Math.min(Math.abs(this.vx), this.terminalXVelocity);
@@ -241,8 +254,10 @@ var done = false;
 var left_pressed = false;
 var right_pressed = false;
 var doKeyDown = function(k) {
-  if (k.keyCode == 32)
+  if (k.keyCode == 32) { // space: jump up, and jump off walls
     player.jump(4);
+    player.bouncy = true;
+  }
   else if (k.keyCode == 65) { // A
     player.dirx = -1;
     left_pressed = true;
@@ -262,7 +277,7 @@ var doKeyUp = function(k) {
     player.dirx = 0;
     right_pressed = false;
     if (left_pressed) player.dirx = -1;
-  } else if (k.keyCode == 81) { // Q
+  } else if (k.keyCode == 32) { // Q
     player.bouncy = false;
   } else if (k.keyCode == 69) { // E
     player.switchColor();
@@ -270,8 +285,7 @@ var doKeyUp = function(k) {
 };
 
 /*
-  Maybe I should switch to a real map editor eventually. Using a map
-  of characters for now.
+  Use 2D array of characters for level maps.
 
   W, B, G = white, black and grey blocks
   i, b, g = white, black and grey coins
@@ -282,7 +296,6 @@ var level1 = {};
 var level2 = {};
 var level3 = {};
 var level4 = {};
-CURRENT_LEVEL = level4;
 level1.map = [
   "     iiiii",
   "@",
@@ -296,30 +309,23 @@ level2.map = [
 ];
 level2.next = level3;
 level3.map = [
-  "",
-  "",
-  "                       W          ",
-  "                       W          ",
-  "                       W   BBBGGGWWGGGBBGGGWWGGGBBB b B            ",
-  "                       W   B                      B b B             ",
-  "                       W   B                      B   B             ",
-  "                       W   B                      B i B             ",
-  "                       W   B                      B i B             ",
-  " @                         B                      B   B             ",
-  "                           B                      B   B             ",
-  "   iii        WWWW   BBBBBBB                      B b B             ",
-  "                                                  B b B               ",
+  "                       W",
+  "                       W",
+  "                       W   BBBGGGWWGGGBBGGGWWGGGBBB b B     B b B",
+  "                       W   B                      B b B     B b B",
+  "                       W   B                      B   B     B   B",
+  "                       W   B                      B i B     B i B",
+  "                       W   B                      B i B     B i B",
+  "                           B                      B   B     B   B",
+  "                           B                      B   B     B   B",
+  "@  iii        WWWW   BBBBBBB                      B b B     B b B",
+  "                                                  B b B     B b B",
   "WWWWWWWWW",
-  "                                                     ",
-  "                                                   WWWWWWWWWWWWW    ",
   "",
-  "",
-  "",
-  "",
-  "WBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWBWB" // lava!
+
+  "                                                   WWWWWWWWWWWWW"
 ];
 level3.next = level4;
-
 level4.map = [
   "   @",
   "   W   W",
@@ -334,7 +340,13 @@ function drawMap(map, player) {
   player.vx = 0;
   player.vy = 0;
   MAX_SCORE = 0;
+  X_BOUNDS = [0,0];
+  Y_BOUNDS = [0,0];
+
   score = 0;
+  camera = {x : 0,
+            y : 0,
+            z : 0.1};
   var blockWidth = 50;
   var blockLength = 75;
   for (var i in map) {
@@ -343,6 +355,11 @@ function drawMap(map, player) {
       character = level[j];
       x = j * blockWidth;
       y = i * blockLength;
+      X_BOUNDS[0] = Math.min(X_BOUNDS[0], x);
+      X_BOUNDS[1] = Math.max(X_BOUNDS[1], x);
+      Y_BOUNDS[0] = Math.min(Y_BOUNDS[0], y);
+      Y_BOUNDS[1] = Math.max(Y_BOUNDS[1], y);
+      
       if (character === " ") continue; // empty space
       else if (["W", "B", "G"].indexOf(character) > -1) { // blocks
         body = new Body(blockWidth, blockLength,
@@ -360,7 +377,12 @@ function drawMap(map, player) {
         MAX_SCORE ++;
       }
     }
+    X_BOUNDS[0] -= 400;
+    X_BOUNDS[1] += 400;
+    Y_BOUNDS[0] -= 400;
+    Y_BOUNDS[1] += 400;
   }
+  camera.x = player.centerx();
+  camera.y = player.centery();
 }
-
 

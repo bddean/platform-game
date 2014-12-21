@@ -1,6 +1,6 @@
 score = 0;
 BODIES = [];
-
+CURRENT_LEVEL = level1;
 
 addEventListener("keydown", doKeyDown,true);
 addEventListener("keyup", doKeyUp, true);
@@ -57,9 +57,6 @@ player.onCollisionWith("Coin", function(dir, coin) {
 });
 
 
-camera.x = player.centerx();
-camera.y = player.centery();
-
 var destX, destY;
 var main = function() {
   clear();
@@ -69,6 +66,8 @@ var main = function() {
 
   camera.x += (-camera.x + destX) / 30;
   camera.y += (-camera.y + destY) / 30;
+  camera.z += camera.z * (0.5 - camera.z) / 30;
+  camera.z = Math.min(camera.z, .50);
 
   // update bodies
   for (var b in BODIES) {
@@ -84,3 +83,4 @@ var main = function() {
 
 //TODO: use window.requestAnimationFrame
 setInterval(main, DELAY);
+
