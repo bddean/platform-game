@@ -1,14 +1,11 @@
 /*********** to do list  ***********/
-/* FIXME: player randomly dies in midair
- * FIXME: game speed is not consistent
- * TODO: jumping off the floor and the wall should be the same action
- * TODO: clean up collision logic
+/* TODO: clean up collision logic
  *   - I may only need to check for collisions between player and other things
  *   - separate intialization + logic better
  *   - Make it easier to separate collision callbacks from the state
  *   - If maps get big enough, use a heap instead of a list to hold bodies
  * TODO: more features
- *   - moving coins
+ *   - moving coins (enemies)
  *   - blocks that change color 
  **/
 /*********** utility functions ***********/
@@ -168,22 +165,20 @@ Moveable.prototype.jump = function(amount) {
  if (this.support)
     this.vy = -amount;
 };
-Moveable.prototype.update = function() {
-  this._left += this.vx;
-  this._top += this.vy;
+Moveable.prototype.update = function(elapsedTime) {
+  this._left += this.vx * elapsedTime;
+  this._top += this.vy * elapsedTime;
 
   // Clean up: get rid of objects that are out of bounds
   if (this.centerx() < X_BOUNDS[0] || this.centerx() > X_BOUNDS[1] ||
       this.centery() < Y_BOUNDS[0] || this.centery() > Y_BOUNDS[1]) {
-    console.log("OUT OF BOUNDS");
     this.destroy();
   }
 
-  this.vy += this.accely;
+  this.vy += this.accely * elapsedTime;
   var accelx = this.dirx * ((this.surface ? this.surface.friction * this.friction * 30 : 0)
         + 0.04);
-  this.vx += accelx;
-
+  this.vx += accelx * elapsedTime;
 
   if (this.support && this.dirx === 0) {
     this.vx *= (1 - this.friction * this.support.friction);
@@ -214,13 +209,13 @@ Player.prototype.switchColor = function() {
 };
 Player.prototype.destroy = function() {
   this.pos(this.originalPos);
-  this._vx = 0;
-  this._vy = 0;
+  this.vx = 0;
+  this.dvy = 0;
 };
 
 Player.prototype.setOriginalPos = function(x, y) {
   this.originalPos = [x, y];
-  this.pos(this.originalPos); // no idea y this doesn't work
+  this.pos(this.originalPos);
 };
 
 

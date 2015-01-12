@@ -58,6 +58,8 @@ player.onCollisionWith("Coin", function(dir, coin) {
 
 
 var destX, destY;
+var t1 = new Date().getTime();
+var t2 = t1;
 var main = function() {
   clear();
   // update camera
@@ -70,10 +72,12 @@ var main = function() {
   camera.z = Math.min(camera.z, .50);
 
   // update bodies
+  t2 = new Date().getTime();
   for (var b in BODIES) {
-    BODIES[b].update();
+    BODIES[b].update((t2 - t1) / 10);
     BODIES[b].draw();
   }
+  t1 = t2;
 
   // draw score
   ctx.fillStyle = "black";
@@ -82,5 +86,17 @@ var main = function() {
 };
 
 //TODO: use window.requestAnimationFrame
-setInterval(main, DELAY);
+var requestAnimationFrame =
+      requestAnimationFrame       ||
+      window.webkitRequestAnimationFrame ||
+      window.mozRequestAnimationFrame    ||
+      function( callback ) {
+        window.setTimeout(callback, 1000 / 60);
+      };
+
+(function mainLoop() {
+  requestAnimationFrame(mainLoop);
+  main();
+})();
+
 
