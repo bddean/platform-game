@@ -11,50 +11,8 @@ player.accely = 0.05;
 
 drawMap(CURRENT_LEVEL.map, player);
 
-
-player.onCollisionWith("Body", function(dir, body) {
-  if ((player.color === "white" && body.color === "black") ||
-      (player.color === "black" && body.color === "white"))
-    player.destroy();
-
-  else if (dir == "bottom") {
-    this._top = body._top - this.height;
-    this.vy = 0;
-    this.support = body;
-  } else if (dir == "top") {
-    this.vy = 0;
-    this._top = body.bottom() + 1;
-  } else if (dir == "right") {
-    if (player.bouncy && !player.support) {
-      this.vx = -4;
-      this.vy = -2;
-    } else {
-      this._left = body._left - this.width;
-      this.vx = Math.min(this.vx, 0);
-    }
-  } else if (dir == "left") {
-    if (player.bouncy && !player.support) {
-      this.vx = 4;
-      this.vy = -2;
-    } else {
-      this._left = body.right();
-      this.vx = Math.max(this.vx, 0);
-    }
-  }
-});
-player.onCollisionWith("Coin", function(dir, coin) {
-  if ((player.color === "white" && coin.color === "black") ||
-      (player.color === "black" && coin.color === "white"))
-    player.destroy();
-  else {
-    coin.destroy();
-    score += 1;
-  }
-  if (score == MAX_SCORE && CURRENT_LEVEL.next) {
-    CURRENT_LEVEL = CURRENT_LEVEL.next;
-    drawMap(CURRENT_LEVEL.map, player);
-  }
-});
+player.onCollisionWith("Body", player.collideBody);
+player.onCollisionWith("Coin", player.collideCoin);
 
 
 var destX, destY;

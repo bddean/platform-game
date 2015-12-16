@@ -6,11 +6,11 @@
  *   - If maps get big enough, use a heap instead of a list to hold bodies
  * TODO: more features
  *   - moving coins (enemies)
- *   - blocks that change color 
+ *   - blocks that change color
  **/
 /*********** utility functions ***********/
-function sign(x){ // from http://stackoverflow.com/questions/21363064/chrome-chromium-doesnt-know-javascript-function-math-sign
-    if( +x === x ) { // check if a number was given
+function sign(x) { // from http://stackoverflow.com/questions/21363064/chrome-chromium-doesnt-know-javascript-function-math-sign
+    if (+x === x) { // check if a number was given
         return (x === 0) ? x : (x > 0) ? 1 : -1;
     }
     return NaN;
@@ -21,8 +21,8 @@ var BODIES;
 var WIDTH = 640;
 var HEIGHT = 480;
 var DELAY = 10;
-var canvas = document.getElementById("game");
-var ctx = canvas.getContext("2d");
+var canvas = document.getElementById('game');
+var ctx = canvas.getContext('2d');
 
 var MAX_SCORE;
 var CURRENT_LEVEL;
@@ -31,7 +31,7 @@ var X_BOUNDS;
 var Y_BOUNDS;
 
 function Body(width, height, color)  {
-  this.name = "Body";
+  this.name = 'Body';
   this.width = width;
   this.height = height;
   this.color = color;
@@ -57,7 +57,7 @@ Body.prototype.pos = function() {
   } else {
     this._left = arguments[0];
     this._top = arguments[1];
-    return this;    
+    return this;
   }
 };
 Body.prototype.destroy = function() {
@@ -73,8 +73,8 @@ Body.prototype.centerx = function() { return this._left + this.width / 2; };
 Body.prototype.centery = function() { return this._top + this.height / 2; };
 Body.prototype.draw = function() {
   ctx.fillStyle = this.color;
-  ctx.fillRect((this.left() - camera.x) * camera.z + WIDTH/2,
-               (this.top()  - camera.y) * camera.z + HEIGHT/2,
+  ctx.fillRect((this.left() - camera.x) * camera.z + WIDTH / 2,
+               (this.top() - camera.y) * camera.z + HEIGHT / 2,
                this.width * camera.z,
                this.height * camera.z);
 };
@@ -83,7 +83,7 @@ Body.prototype.angleTo = function(other) {
     return other.centery() > this.centery() ? 0.5 * Math.PI : 1.5 * Math.PI;
   else if (other.centery() == this.centery()) // not sure this check is needed
     return other.centerx() > this.centerx() ? 0 : Math.PI;
-  return Math.atan((other.centery() - this.centery())/
+  return Math.atan((other.centery() - this.centery()) /
                    (other.centerx() - this.centerx()));
 };
 Body.prototype.collision = function(other) {
@@ -97,8 +97,8 @@ Body.prototype.collision = function(other) {
     var wy = w * dy;
     var hx = h * dx;
     return (wy > hx) ?
-      ((wy > -hx) ? "top" : "right") :
-      ((wy > -hx) ? "left" : "bottom");
+      ((wy > -hx) ? 'top' : 'right') :
+      ((wy > -hx) ? 'left' : 'bottom');
   }
   return false;
 };
@@ -117,7 +117,7 @@ Body.prototype.doCollisions = function() {
     for (var b in BODIES) {
       if (BODIES[b] != this && BODIES[b].name == type) {
         var col = this.collision(BODIES[b]);
-        if(col) {
+        if (col) {
           callback.call(this, col, BODIES[b]);
         }
       }
@@ -126,18 +126,18 @@ Body.prototype.doCollisions = function() {
 };
 
 function Coin(color) {
-  this.name = "Coin";
+  this.name = 'Coin';
   this.width = 25;
   this.height = 25;
   this.color = color;
 
   this.collisionCallbacks = {};
 }
-Coin.prototype = new Body(0,0, "black");
+Coin.prototype = new Body(0, 0, 'black');
 
 function Moveable(width, height, color) {
-//  this.__proto__ = 
-  this.name = "Moveable";
+//  this.__proto__ =
+  this.name = 'Moveable';
   this.width = width;
   this.height = height;
   this.color = color;
@@ -148,11 +148,13 @@ function Moveable(width, height, color) {
   this.support = null;
   this.bouncy = false;
 
+  this.originalPos = [0, 0];
+
   this.accelx = 0;
   this.accely = 0;
   this.dirx = 0;
 }
-Moveable.prototype = new Body(0,0,"rgb(0,0,0)");
+Moveable.prototype = new Body(0, 0, 'rgb(0,0,0)');
 
 Moveable.prototype.velocity = function(x, y) {
   if (x === undefined) return [this.vx, this.vy];
@@ -176,8 +178,8 @@ Moveable.prototype.update = function(elapsedTime) {
   }
 
   this.vy += this.accely * elapsedTime;
-  var accelx = this.dirx * ((this.surface ? this.surface.friction * this.friction * 30 : 0)
-        + 0.04);
+  var accelx = this.dirx * ((this.surface ? this.surface.friction * this.friction * 30 : 0) +
+        0.04);
   this.vx += accelx * elapsedTime;
 
   if (this.support && this.dirx === 0) {
@@ -191,36 +193,92 @@ Moveable.prototype.update = function(elapsedTime) {
   this.support = null;
   this.doCollisions();
 };
+Moveable.prototype.setOriginalPos = function(x, y) {
+  this.originalPos = [x, y];
+  this.pos(this.originalPos);
+  return this;
+};
+
+var Elevator = function(width, height, color) {
+  Moveable.apply(this, arguments);
+  this.name = 'Coin';
+  this.friction = 0.1;
+  this.accely = 0;
+};
+Elevator.prototype = new Moveable(0, 0, 'rgb(0,0,0)');
+Elevator.update = function(elapsedTime) {
+  this.accely = this.pos[1] - this.originalPos[1];
+  Moveable.prototype.update.apply(this, arguments);
+};
 
 var Player = function(width, height, color) {
   Moveable.apply(this, arguments);
-  this.name = "Player";
+  this.name = 'Player';
   this.originalPos = [0, 0];
   this.friction = 0.1;
   this.accely = 0.05;
 };
-Player.prototype = new Moveable(0,0,"rgb(0,0,0)");
+Player.prototype = new Moveable(0, 0, 'rgb(0,0,0)');
 Player.prototype.switchColor = function() {
-  if (this.color === "white")
-    this.color = "black";
+  if (this.color === 'white')
+    this.color = 'black';
   else {
-    this.color = "white";
+    this.color = 'white';
   }
 };
 Player.prototype.destroy = function() {
   this.pos(this.originalPos);
   this.vx = 0;
-  this.dvy = 0;
+  this.vy = 0;
 };
 
-Player.prototype.setOriginalPos = function(x, y) {
-  this.originalPos = [x, y];
-  this.pos(this.originalPos);
+Player.prototype.collideBody = function(dir, body) {
+  if ((this.color === "white" && body.color === "black") ||
+      (this.color === "black" && body.color === "white"))
+    this.destroy();
+
+  else if (dir == "bottom") {
+    this._top = body._top - this.height;
+    this.vy = 0;
+    this.support = body;
+  } else if (dir == "top") {
+    this.vy = 0;
+    this._top = body.bottom() + 1;
+  } else if (dir == "right") {
+    if (this.bouncy && !this.support) {
+      this.vx = -4;
+      this.vy = -2;
+    } else {
+      this._left = body._left - this.width;
+      this.vx = Math.min(this.vx, 0);
+    }
+  } else if (dir == "left") {
+    if (this.bouncy && !this.support) {
+      this.vx = 4;
+      this.vy = -2;
+    } else {
+      this._left = body.right();
+      this.vx = Math.max(this.vx, 0);
+    }
+  }
 };
 
+Player.prototype.collideCoin = function(dir, coin) {
+  if ((this.color === "white" && coin.color === "black") ||
+      (this.color === "black" && coin.color === "white"))
+    this.destroy();
+  else {
+    coin.destroy();
+    score += 1;
+  }
+  if (score == MAX_SCORE && CURRENT_LEVEL.next) {
+    CURRENT_LEVEL = CURRENT_LEVEL.next;
+    drawMap(CURRENT_LEVEL.map, this);
+  }
+};
 
 function Enemy(width, height, color) {
-  this.name="Enemy";
+  this.name = 'Enemy';
   this.width = width;
   this.height = height;
   this.color = color;
@@ -235,12 +293,12 @@ function Enemy(width, height, color) {
   this.accely = 0;
   this.dirx = 0;
 }
-Enemy.prototype = new Moveable(0,0,"rgb(0,0,0)");
+Enemy.prototype = new Moveable(0, 0, 'rgb(0,0,0)');
 
 
 var clear = function() {
-  ctx.fillStyle = "rgb(0, 191, 250)";
-  ctx.fillRect(0,0, WIDTH, HEIGHT);
+  ctx.fillStyle = 'rgb(0, 191, 250)';
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
 };
 
 var key = 0;
@@ -285,63 +343,73 @@ var doKeyUp = function(k) {
   W, B, G = white, black and grey blocks
   i, b, g = white, black and grey coins
   @       = the player
-*/ 
+*/
 
 var level1 = {};
 var level2 = {};
 var level3 = {};
 var level4 = {};
+var level5 = {};
 level1.map = [
-  "     iiiii",
-  "@",
-  "WWWWWBBBBBWWWWW"
+  '     iiiii',
+  '@',
+  'WWWWWBBBBBWWWWW'
 ];
 level1.next = level2;
 level2.map = [
-  "  iii           bbb           iii     ",
-  "@",
-  "WWWWWWW       BBBBBBB       BBBBBBB"
+  '  iii           bbb           iii     ',
+  '@',
+  'WWWWWWW       BBBBBBB       BBBBBBB'
 ];
 level2.next = level3;
 level3.map = [
-  "                       W",
-  "                       W",
-  "                       W   BBBGGGWWGGGBBGGGWWGGGBBB b B     B b B",
-  "                       W   B                      B b B     B b B",
-  "                       W   B                      B   B     B   B",
-  "                       W   B                      B i B     B i B",
-  "                       W   B                      B i B     B i B",
-  "                           B                      B   B     B   B",
-  "                           B                      B   B     B   B",
-  "@  iii        WWWW   BBBBBBB                      B b B     B b B",
-  "                                                  B b B     B b B",
-  "WWWWWWWWW",
-  "",
+  '                       W',
+  '                       W',
+  '                       W   BBBGGGWWGGGBBGGGWWGGGBBB b B     B b B',
+  '                       W   B                      B b B     B b B',
+  '                       W   B                      B   B     B   B',
+  '                       W   B                      B i B     B i B',
+  '                       W   B                      B i B     B i B',
+  '                           B                      B   B     B   B',
+  '                           B                      B   B     B   B',
+  '@  iii        WWWW   BBBBBBB                      B b B     B b B',
+  '                                                  B b B     B b B',
+  'WWWWWWWWW',
+  '',
 
-  "                                                   WWWWWWWWWWWWW"
+  '                                                   WWWWWWWWWWWWW'
 ];
 level3.next = level4;
 level4.map = [
-  "   @",
-  "   W   W",
-  "",
-  " WW     WW",
-  "  WWWWWWW",
+  '@     v',
+  'WWWW    v',
+  '         v'
 ];
+
+/////////////////////
+// level4.map = [  //
+//   "   @",       //
+//   "   W   W",   //
+//   "",           //
+//   " WW     WW", //
+//   "  WWWWWWW",  //
+// ];              //
+/////////////////////
 
 function drawMap(map, player) {
   BODIES = [];
+  skewer.log('drawing');
   player.register();
   player.vx = 0;
   player.vy = 0;
   MAX_SCORE = 0;
-  X_BOUNDS = [0,0];
-  Y_BOUNDS = [0,0];
+  X_BOUNDS = [0, 0];
+  Y_BOUNDS = [0, 0];
 
   score = 0;
-  camera = {x : 0,
-            y : 0,
-            z : 0.1};
+  camera = {x: 0,
+            y: 0,
+            z: 0.1};
   var blockWidth = 50;
   var blockLength = 75;
   for (var i in map) {
@@ -354,22 +422,27 @@ function drawMap(map, player) {
       X_BOUNDS[1] = Math.max(X_BOUNDS[1], x);
       Y_BOUNDS[0] = Math.min(Y_BOUNDS[0], y);
       Y_BOUNDS[1] = Math.max(Y_BOUNDS[1], y);
-      
-      if (character === " ") continue; // empty space
-      else if (["W", "B", "G"].indexOf(character) > -1) { // blocks
-        body = new Body(blockWidth, blockLength,
-                        {"W":"white", "B":"black", "G":"grey"}[character])
+
+      if (character === ' ') continue; // empty space
+      else if (['W', 'B', 'G'].indexOf(character) > -1) { // blocks
+        var body = new Body(blockWidth, blockLength,
+                        {'W': 'white', 'B': 'black', 'G': 'grey'}[character])
           .pos(x, y).register();
         body.friction = 0.7;
-      } else if (character === "@") { // the player
+      } else if (character === '@') { // the player
         player.setOriginalPos(x, y);
-      } else if (["b", "i", "g"].indexOf(character) > -1) { // coins
+      }
+      else if (character == 'v') {
+        var elevator = new Elevator(blockWidth, blockLength, 'black');
+        elevator.setOriginalPos(x, y);
+        elevator.register();
+      } else if (['b', 'i', 'g'].indexOf(character) > -1) { // coins
         new Coin({
-          "b": "black",
-          "i": "white",
-          "g": "grey"
+          'b': 'black',
+          'i': 'white',
+          'g': 'grey'
         }[character]).pos(x, y).register();
-        MAX_SCORE ++;
+        MAX_SCORE++;
       }
     }
     X_BOUNDS[0] -= 400;
