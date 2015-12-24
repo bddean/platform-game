@@ -14,7 +14,6 @@ drawMap(CURRENT_LEVEL.map, player);
 player.onCollisionWith("Body", player.collideBody);
 player.onCollisionWith("Coin", player.collideCoin);
 
-
 var destX, destY;
 var t1 = new Date().getTime();
 var t2 = t1;

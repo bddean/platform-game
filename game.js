@@ -1,5 +1,5 @@
 /*********** to do list  ***********/
-/* TODO: clean up collision logic
+/* TODO: clean up collision logic (necessary for Elevator)
  *   - I may only need to check for collisions between player and other things
  *   - separate intialization + logic better
  *   - Make it easier to separate collision callbacks from the state
@@ -45,6 +45,7 @@ function Body(width, height, color)  {
 }
 Body.prototype.register = function() {
   BODIES.push(this);
+  this.init();
   return this;
 };
 Body.prototype.pos = function() {
@@ -107,6 +108,10 @@ Body.prototype.onCollisionWith = function(type, callback) {
    * Callback to be called on a collision, passed (direction, other)
    */
   this.collisionCallbacks[type] = callback;
+};
+
+Body.prototype.init = function() {
+  // default - do nothing
 };
 Body.prototype.update = function() {
   // default - do nothing
@@ -191,7 +196,7 @@ Moveable.prototype.update = function(elapsedTime) {
   this.vy = sign(this.vy) * Math.min(Math.abs(this.vy), this.terminalYVelocity);
 
   this.support = null;
-  this.doCollisions();
+  // this.doCollisions();
 };
 Moveable.prototype.setOriginalPos = function(x, y) {
   this.originalPos = [x, y];
@@ -199,16 +204,33 @@ Moveable.prototype.setOriginalPos = function(x, y) {
   return this;
 };
 
-var Elevator = function(width, height, color) {
+var Elevator = function(width, height, color, accelmag) {
   Moveable.apply(this, arguments);
-  this.name = 'Coin';
+  this.name = 'Body';
   this.friction = 0.1;
   this.accely = 0;
+  this.accelmag = accelmag;
 };
 Elevator.prototype = new Moveable(0, 0, 'rgb(0,0,0)');
-Elevator.update = function(elapsedTime) {
-  this.accely = this.pos[1] - this.originalPos[1];
+Elevator.prototype.init = function() {
+
+  // this.vy = Math.random() * 100 - 10;
+};
+Elevator.prototype.update = function(elapsedTime) {
+  if (this.direction == undefined) this.direction = 1; // down
+  var distance = this._top - this.originalPos[1];
+  if (distance < 100) {
+    this.accely = this.accelmag;
+  } else // if (distance > -100)
+  {
+    this.accely = -this.accelmag;
+  }
+
   Moveable.prototype.update.apply(this, arguments);
+};
+
+Elevator.prototype.init = function() {
+  
 };
 
 var Player = function(width, height, color) {
@@ -230,6 +252,11 @@ Player.prototype.destroy = function() {
   this.pos(this.originalPos);
   this.vx = 0;
   this.vy = 0;
+};
+
+Player.prototype.update = function(time) {
+  Moveable.prototype.update.call(this, time);
+  this.doCollisions();
 };
 
 Player.prototype.collideBody = function(dir, body) {
@@ -262,6 +289,7 @@ Player.prototype.collideBody = function(dir, body) {
     }
   }
 };
+
 
 Player.prototype.collideCoin = function(dir, coin) {
   if ((this.color === "white" && coin.color === "black") ||
@@ -381,10 +409,16 @@ level3.map = [
 ];
 level3.next = level4;
 level4.map = [
-  '@     v',
-  'WWWW    v',
-  '         v'
+  '      b',
+  ' i         i',
+  '@   *vvv       b     b  i  b  i  b',
+  'WWWW     *eee         ',
+  '             *vvv',
+  '                   !eeevvveeevvveee' 
+
 ];
+
+level1 = level4;
 
 /////////////////////
 // level4.map = [  //
@@ -395,6 +429,7 @@ level4.map = [
 //   "  WWWWWWW",  //
 // ];              //
 /////////////////////
+
 
 function drawMap(map, player) {
   BODIES = [];
@@ -412,9 +447,13 @@ function drawMap(map, player) {
             z: 0.1};
   var blockWidth = 50;
   var blockLength = 75;
+  var blockParam = 1; // single parameter map maker can set
+  var chaosMode = false; // randomize parameters
   for (var i in map) {
     level = map[i];
     for (var j in level) {
+      if (chaosMode) blockParam = Math.random();
+
       character = level[j];
       x = j * blockWidth;
       y = i * blockLength;
@@ -431,9 +470,20 @@ function drawMap(map, player) {
         body.friction = 0.7;
       } else if (character === '@') { // the player
         player.setOriginalPos(x, y);
-      }
-      else if (character == 'v') {
-        var elevator = new Elevator(blockWidth, blockLength, 'black');
+      } else if ('0123456789'.indexOf(character) > -1) { // Set parameter
+        blockParam = parseInt(character);
+        chaosMode = false;
+      } else if (character == '*') {
+        blockParam = Math.random();
+        chaosMode = false;
+      } else if (character == '!') {
+        chaosMode = true;
+      } else if (character == 'v') {
+        var elevator = new Elevator(blockWidth, blockLength, 'black', blockParam * 0.1);
+        elevator.setOriginalPos(x, y);
+        elevator.register();
+      } else if (character == 'e') {
+        var elevator = new Elevator(blockWidth, blockLength, 'white', blockParam * 0.1);
         elevator.setOriginalPos(x, y);
         elevator.register();
       } else if (['b', 'i', 'g'].indexOf(character) > -1) { // coins
