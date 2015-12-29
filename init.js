@@ -1,6 +1,6 @@
 score = 0;
 BODIES = [];
-CURRENT_LEVEL = level1;
+currentLevel = level1;
 
 addEventListener("keydown", doKeyDown,true);
 addEventListener("keyup", doKeyUp, true);
@@ -9,10 +9,10 @@ var player = new Player(50, 50, "white").pos(20,300).register();
 player.vy = 0;
 player.accely = 0.05;
 
-drawMap(CURRENT_LEVEL.map, player);
+drawMap(currentLevel.map, player);
 
-player.onCollisionWith("Body", player.collideBody);
-player.onCollisionWith("Coin", player.collideCoin);
+player.onCollisionWith(Block, player.collideBlock);
+player.onCollisionWith(Coin, player.collideCoin);
 
 var destX, destY;
 var t1 = new Date().getTime();
@@ -25,8 +25,8 @@ var main = function() {
 
   camera.x += (-camera.x + destX) / 30;
   camera.y += (-camera.y + destY) / 30;
-  camera.z += camera.z * (0.5 - camera.z) / 30;
-  camera.z = Math.min(camera.z, .50);
+  camera.z += camera.z * (NORMAL_CAMERA_HEIGHT - camera.z) / 20;
+  camera.z = Math.min(camera.z, NORMAL_CAMERA_HEIGHT);
 
   // update bodies
   t2 = new Date().getTime();
@@ -39,14 +39,13 @@ var main = function() {
   // draw score
   ctx.fillStyle = "black";
   ctx.font="20px Arial";
-  ctx.fillText(score + "/" + MAX_SCORE, 0, 20);
+  ctx.fillText(score + "/" + maxScore, 0, 20);
 };
 
-//TODO: use window.requestAnimationFrame
 var requestAnimationFrame =
       requestAnimationFrame       ||
-      window.webkitRequestAnimationFrame ||
-      window.mozRequestAnimationFrame    ||
+      webkitRequestAnimationFrame ||
+      mozRequestAnimationFrame    ||
       function( callback ) {
         window.setTimeout(callback, 1000 / 60);
       };
