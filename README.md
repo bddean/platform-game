@@ -1,13 +1,14 @@
 platform-game
 =============
 
-A color-matching platformer game. The player needs to change their color to match objects that they touch. 
+A color-matching platformer game. Jump around a world of black and white blocks,
+collecting smaller blocks (coins). If you touch a block or coin of the wrong
+color, you die.
 
-You can play it here: http://htmlpreview.github.io/?https://github.com/bddean/platform-game/blob/master/index.html
+You can play it at:
+http://htmlpreview.github.io/?https://github.com/bddean/platform-game/blob/master/index.html
 
 Controls:
-  WASD: move
-  space: jump (off the ground or off walls)
-  E: change color
-
-Try to collect all the little blocks
+  - WASD: move
+  - space: jump (off the ground or off walls)
+  - E: change color
